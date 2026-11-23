@@ -1,0 +1,152 @@
+---
+title: "Reading, parsing and writing JSON5"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Reading, parsing and writing JSON5}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r setup}
+library(json5)
+```
+
+This vignette walks through the three basic tasks of the package: reading a
+JSON5 file, parsing JSON5 text, and writing R objects back to a JSON5 file.
+
+## The example
+
+We use the short example from the JSON5 website,
+[json5.org](https://json5.org/) (Kishore, Tucker and contributors, MIT
+license). It shows most of what JSON5 adds to JSON in a few lines. The
+package ships it as `inst/extdata/example.json5`:
+
+```{r}
+path <- system.file("extdata", "example.json5", package = "json5")
+cat(readLines(path), sep = "\n")
+```
+
+## Reading a file
+
+`read_json5()` reads a file and returns an R object. The JSON5-only syntax
+(comments, single quotes, unquoted keys, a line continuation, a hexadecimal
+number, leading and trailing decimal points, an explicit `+` sign, and
+trailing commas) is converted, and jsonlite maps the result to R types:
+
+```{r}
+x <- read_json5(path)
+str(x)
+```
+
+A few things to note:
+
+- `0xdecaf` became the integer `912559`, `.8675309` became `0.8675309`, and
+  `+1` became `1`.
+- The backslash at the end of the `lineBreaks` line is a line continuation, so
+  the string has no line break. `\\n` is an escaped backslash followed by `n`,
+  not a newline.
+- The comment `// comments` is kept as the `comment()` attribute of the
+  element that follows it:
+
+```{r}
+comment(x$unquoted)
+```
+
+## Parsing text
+
+`parse_json5()` does the same for text that is already in memory, such as a
+string in your script or the output of another program:
+
+```{r}
+txt <- "{
+  name: 'demo',   // inline comment
+  sizes: [1, 2, 3,],
+  ratio: .5,
+}"
+str(parse_json5(txt))
+```
+
+It takes the same simplification options as `jsonlite::fromJSON()`. By
+default, arrays of scalars become vectors, so the one-element array
+`andIn: ['arrays',]` became the plain string `"arrays"`. Use
+`simplifyVector = FALSE` to keep every array as a list:
+
+```{r}
+y <- read_json5(path, simplifyVector = FALSE)
+str(y$andIn)
+```
+
+Invalid input raises an error that gives the line and column.
+`validate_json5()` returns `TRUE` or `FALSE` instead, with the message in an
+attribute:
+
+```{r}
+validate_json5("{a: 1,, }")
+```
+
+## Writing
+
+`to_json5()` returns JSON5 text and `write_json5()` writes it to a file.
+Comments are written back, keys are left unquoted where possible, and
+multi-line objects get trailing commas:
+
+```{r}
+cat(to_json5(y))
+```
+
+The writer has options for the style of the output. For example,
+`quote = "auto"` picks the quote character that needs fewer escapes, and
+`quote_keys = TRUE` quotes every key:
+
+```{r}
+cat(to_json5(y, quote = "auto", quote_keys = TRUE))
+```
+
+To save the result, give `write_json5()` a file path. Reading the file back
+returns the same values, comments included:
+
+```{r}
+out <- tempfile(fileext = ".json5")
+write_json5(y, out)
+z <- read_json5(out, simplifyVector = FALSE)
+all.equal(z, y)
+comment(z$unquoted)
+```
+
+The values are equal but not `identical()`. JSON5 has a single number type,
+and jsonlite picks the R type from how a number is written. `8675309.` has a
+decimal point, so it was read as a double. It is written back as `8675309`,
+which reads as an integer:
+
+```{r}
+c(original = typeof(y$andTrailing), round_trip = typeof(z$andTrailing))
+```
+
+```{r, include = FALSE}
+unlink(out)
+```
+
+## Converting to JSON
+
+Tools that only understand strict JSON can use `json5_to_json()`. It drops
+comments and trailing commas and rewrites keys, strings and numbers in JSON
+syntax:
+
+```{r}
+json5_to_json(readLines(path), pretty = TRUE)
+```
+
+## References
+
+- *JSON5 – JSON for Humans.* <https://json5.org/>. The example in this
+  vignette is taken from that page. Copyright (c) 2012-2018 Aseem Kishore and
+  others, MIT license.
+- Kishore, A., Tucker, J. and contributors. *The JSON5 Data Interchange
+  Format*, version 1.0.0. <https://spec.json5.org/>
+- Ooms, J. (2014). *The jsonlite Package: A Practical and Consistent Mapping
+  Between JSON Data and R Objects.* arXiv:1403.2805 [stat.CO].
+  <https://arxiv.org/abs/1403.2805>

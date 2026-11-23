@@ -1,0 +1,28 @@
+Package: json5
+Type: Package
+Title: Read and Write 'JSON5' with Comments
+Version: 0.1.0
+Authors@R: c(
+    person("First", "Last", email = "hannaneh@hangflow.org",
+           role = c("aut", "cre")),
+    person("Jeroen", "Ooms", role = "cph",
+           comment = "author of 'jsonlite'; clean_names() is adapted from 'jsonlite'"),
+    person("Aseem", "Kishore", role = "cph",
+           comment = "'json5-tests' conformance suite, see inst/COPYRIGHTS")
+  )
+Description: A pure R parser and generator for 'JSON5' (<https://spec.json5.org/>).
+    'JSON5' adds comments, trailing commas, unquoted keys, single-quoted
+    and multi-line strings, hexadecimal numbers, and Infinity and NaN. Text is
+    validated against the 'JSON5' 1.0.0 specification and converted to JSON,
+    and the mapping between JSON and R objects is done by 'jsonlite'. Comments
+    are preserved as R comment() attributes and written back out.
+License: MIT + file LICENSE
+URL: https://spec.json5.org/
+Copyright: See file inst/COPYRIGHTS
+Depends: R (>= 4.0.0)
+Imports: jsonlite (>= 1.8.0)
+Suggests: testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.1.1

@@ -1,0 +1,20 @@
+json5 is released under the MIT license (see LICENSE). It includes or adapts
+the following third-party material:
+
+* jsonlite (https://github.com/jeroen/jsonlite)
+  Copyright (c) 2020 Jeroen Ooms. MIT license.
+  The function clean_names() in R/write.R is adapted from jsonlite's
+  cleannames(), so that comments map onto the same object keys that
+  jsonlite::toJSON() produces. json5 also depends on jsonlite for all
+  conversions between JSON and R objects.
+
+* json5-tests (https://github.com/json5/json5-tests)
+  Copyright (c) 2012-2016 Aseem Kishore, and others. MIT license.
+  Vendored unmodified in tests/testthat/json5-tests/ (commit
+  ceb24d4080137d70833f86c25659c1331b80a387) as a conformance test suite.
+  Its license is in tests/testthat/json5-tests/LICENSE.md.
+
+* JSON5 website example (https://json5.org/)
+  Copyright (c) 2012-2018 Aseem Kishore, and others. MIT license.
+  The "Short Example" from the JSON5 website is included unmodified as
+  inst/extdata/example.json5 and used in the vignette.
