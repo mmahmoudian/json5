@@ -1,0 +1,115 @@
+# Release the package when the version in DESCRIPTION changes.
+#
+# On every push to the default branch, compare the `Version:` field of
+# DESCRIPTION with the latest git tag. If they differ:
+#   1. build the package with `R CMD build` and check it,
+#   2. create the tag `v<Version>`,
+#   3. publish a GitHub release with the tarball attached and release notes
+#      made from the commit messages since the previous tag.
+
+name: Release
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history and tags, for the tag check and notes
+
+      - name: Compare DESCRIPTION version with the latest tag
+        id: version
+        run: |
+          version=$(sed -n 's/^Version:[[:space:]]*//p' DESCRIPTION | tr -d '[:space:]')
+          if [ -z "$version" ]; then
+            echo "::error file=DESCRIPTION::No Version field found"
+            exit 1
+          fi
+          # Latest tag by version order (tags look like v1.2.3).
+          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          echo "DESCRIPTION version: $version"
+          echo "Latest tag: ${latest_tag:-<none>}"
+
+          if [ "${latest_tag#v}" = "$version" ]; then
+            echo "Version $version is already tagged; nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          elif git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "::error::Tag v$version already exists but is not the latest tag ($latest_tag). Bump Version in DESCRIPTION."
+            exit 1
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=$latest_tag" >> "$GITHUB_OUTPUT"
+
+      - uses: r-lib/actions/setup-pandoc@v2
+        if: steps.version.outputs.release == 'true'
+
+      - uses: r-lib/actions/setup-r@v2
+        if: steps.version.outputs.release == 'true'
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        if: steps.version.outputs.release == 'true'
+        with:
+          needs: build
+
+      - name: Build package
+        if: steps.version.outputs.release == 'true'
+        id: build
+        run: |
+          # Build outside the source tree so the output is not copied into it.
+          cd "$RUNNER_TEMP"
+          R CMD build "$GITHUB_WORKSPACE"
+          tarball=$(ls json5_*.tar.gz)
+          echo "tarball=$RUNNER_TEMP/$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Check built package
+        if: steps.version.outputs.release == 'true'
+        run: R CMD check --as-cran --no-manual "${{ steps.build.outputs.tarball }}"
+        env:
+          _R_CHECK_CRAN_INCOMING_REMOTE_: "false"
+
+      - name: Write release notes from commit messages
+        if: steps.version.outputs.release == 'true'
+        run: |
+          prev="${{ steps.version.outputs.previous_tag }}"
+          range=${prev:+$prev..HEAD}
+          {
+            echo "## Changes"
+            echo
+            git log ${range:-HEAD} --no-merges --pretty=format:'- %s (%h)'
+            echo
+            if [ -n "$prev" ]; then
+              echo
+              echo "**Full changelog:** https://github.com/${{ github.repository }}/compare/$prev...v${{ steps.version.outputs.version }}"
+            fi
+          } > release-notes.md
+          cat release-notes.md
+
+      # `gh release create` also creates the tag at the commit being released.
+      - name: Create tag and release
+        if: steps.version.outputs.release == 'true'
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            "${{ steps.build.outputs.tarball }}" \
+            --target "$GITHUB_SHA" \
+            --title "json5 ${{ steps.version.outputs.version }}" \
+            --notes-file release-notes.md

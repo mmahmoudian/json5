@@ -1,0 +1,90 @@
+# Build and check the package when a pull request is approved.
+#
+# Runs `R CMD build` and `R CMD check --as-cran` against:
+#   - the minimum R version from the `Depends:` field of DESCRIPTION,
+#   - the latest stable R release,
+#   - the R development version (R-devel).
+# The check fails on any ERROR or WARNING (NOTEs are reported but allowed).
+
+name: R CMD check (approved PR)
+
+on:
+  pull_request_review:
+    types: [submitted]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  versions:
+    name: Find R versions
+    if: github.event_name == 'workflow_dispatch' || github.event.review.state == 'approved'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.r.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Read minimum R version from DESCRIPTION
+        id: r
+        run: |
+          # The Depends field may span several lines; keep it and its continuations.
+          depends=$(awk '/^Depends:/ {f=1; print; next} f && /^[ \t]/ {print; next} {f=0}' DESCRIPTION | tr '\n' ' ')
+          min_r=$(printf '%s' "$depends" | grep -oP '\bR\s*\(\s*>=\s*\K[0-9.]+' || true)
+          if [ -z "$min_r" ]; then
+            echo "::error file=DESCRIPTION::No 'R (>= x.y.z)' requirement found in the Depends field"
+            exit 1
+          fi
+          echo "Minimum R version: $min_r"
+          echo "matrix=[\"$min_r\", \"release\", \"devel\"]" >> "$GITHUB_OUTPUT"
+
+  check:
+    name: R ${{ matrix.r }}
+    needs: versions
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        r: ${{ fromJSON(needs.versions.outputs.matrix) }}
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      _R_CHECK_FORCE_SUGGESTS_: "true"
+      _R_CHECK_CRAN_INCOMING_REMOTE_: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.r }}
+          use-public-rspm: true
+
+      - name: Install LaTeX and HTML Tidy (PDF and HTML manual checks)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-base texlive-latex-recommended texlive-latex-extra \
+            texlive-fonts-recommended texlive-fonts-extra tidy
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+
+      # Builds the tarball with `R CMD build`, then runs `R CMD check` on it.
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          args: 'c("--as-cran")'
+          build_args: 'character()'
+          error-on: '"warning"'
+          upload-snapshots: false
