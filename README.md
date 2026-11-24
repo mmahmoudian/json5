@@ -2,6 +2,15 @@
 
 Read and write [JSON5](https://spec.json5.org/) in R, keeping comments.
 
+> [!WARNING]
+> This package is still in alpha mode and might not be stable. At this stage,
+> usage in production in not advised.
+
+This is project is mainly a pre-processor for `jsonlite` package. It prepares
+the JSON as a string to be compatible with `jsonlite`, then pass it to
+`jsonlite` to be parsed into a list, and then it will add the comments to every
+element of the list.
+
 JSON5 extends JSON with features meant for hand-written files such as
 configuration files. It adds comments, trailing commas, unquoted keys,
 single-quoted and multi-line strings, hexadecimal numbers, and
@@ -136,6 +145,14 @@ citation("jsonlite")
 - The [json5-tests](https://github.com/json5/json5-tests) conformance suite
   (MIT) by Aseem Kishore and contributors. It is included unmodified in
   `tests/testthat/json5-tests/`, with its license.
+
+## AI usage declaration
+
+> [!IMPORTANT]
+> 🤖 This project was largely developed using genAI (Claude Code). The code and
+> the documentation have been manually checked by me, and upon noticing and
+> issue, it was corrected/adjusted by either me or the genAI. If that provenance
+> troubles you, feel free to use something else.
 
 ## License
 
