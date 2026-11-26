@@ -1,10 +1,10 @@
-# json5  <img src="misc/img/json5-r-package-logo.png" width="200" align="right" />
-
-Read and write [JSON5](https://spec.json5.org/) in R, keeping comments.
-
 > [!WARNING]
 > This package is still in alpha mode and might not be stable. At this stage,
 > usage in production in not advised.
+
+# json5 <img src="misc/img/json5-r-package-logo.png" width="200" align="right" />
+
+Read and write [JSON5](https://spec.json5.org/) in R, keeping comments.
 
 This is project is mainly a pre-processor for `jsonlite` package. It prepares
 the JSON as a string to be compatible with `jsonlite`, then pass it to
@@ -26,6 +26,18 @@ single-quoted and multi-line strings, hexadecimal numbers, and
   matrices.
 - It keeps comments by attaching them to the R objects with R's native
   `comment()` attribute, and writes them back out.
+
+-------
+
+**Table of Content**
+
+- [Installation](#installation)
+- [Usage](#usage)
+- [Acknowledgements](#acknowledgements)
+- [AI usage declaration](#ai-usage-declaration)
+- [License](#license)
+
+-------
 
 ## Installation
 
