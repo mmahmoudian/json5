@@ -1,4 +1,4 @@
-# json5
+# json5  <img src="misc/img/json5-r-package-logo.png" width="200" align="right" />
 
 Read and write [JSON5](https://spec.json5.org/) in R, keeping comments.
 
